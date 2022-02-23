@@ -6,7 +6,7 @@ import numpy as np
 import math
 import os
 import numpy.linalg as la
-from input_data import preprocess_data,load_sz_data,load_los_data
+from input_data import preprocess_data,load_sz_data,load_los_data, load_our_data_sections,  load_our_data_intersections
 from tgcn import tgcnCell
 #from gru import GRUCell 
 
@@ -19,14 +19,16 @@ time_start = time.time()
 ###### Settings ######
 flags = tf.app.flags
 FLAGS = flags.FLAGS
+# los_loop is in 5 min intervals: so maybe 3x5=15, 6x5=30, 9x5=45 and 12x5=60 minutes
+# sz_taxi is in 15 min intervals: so maybe 1x15=15, 2x15=30, 3x15=45, 4x15=60 minutes
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
-flags.DEFINE_integer('training_epoch', 1, 'Number of epochs to train.')
-flags.DEFINE_integer('gru_units', 64, 'hidden units of gru.')
-flags.DEFINE_integer('seq_len',12 , '  time length of inputs.')
-flags.DEFINE_integer('pre_len', 3, 'time length of prediction.')
+flags.DEFINE_integer('training_epoch', 50, 'Number of epochs to train.')
+flags.DEFINE_integer('gru_units', 64, 'hidden units of gru.')  # sz_taxi: 100, lop_loop: 64
+flags.DEFINE_integer('seq_len', 1, 'time length of inputs.')  # sz_taxi: 4, los_loop: 12  --> represents 1 hour of information
+flags.DEFINE_integer('pre_len', 30, 'time length of prediction.')  # sz_taxi: 1/2/3/4, los_loop: 3/6/9/12 for [15/30/45/60] min respectively  --> represents 15/20/45/60 min of information
 flags.DEFINE_float('train_rate', 0.8, 'rate of training set.')
-flags.DEFINE_integer('batch_size', 32, 'batch size.')
-flags.DEFINE_string('dataset', 'los', 'sz or los.')
+flags.DEFINE_integer('batch_size', 64, 'batch size.')
+flags.DEFINE_string('dataset', 'sections', 'sz or los or intersections or sections.')
 flags.DEFINE_string('model_name', 'tgcn', 'tgcn')
 model_name = FLAGS.model_name
 data_name = FLAGS.dataset
@@ -43,6 +45,17 @@ if data_name == 'sz':
     data, adj = load_sz_data('sz')
 if data_name == 'los':
     data, adj = load_los_data('los')
+if data_name == 'intersections':
+    data, adj = load_our_data_intersections('intersections')
+if data_name == 'sections':
+    data, adj = load_our_data_sections('sections')
+
+print(len(adj))
+print(len(adj[0]))
+print()
+print(len(data))
+print(data)
+
 
 time_len = data.shape[0]
 num_nodes = data.shape[1]
@@ -137,7 +150,7 @@ for epoch in range(training_epoch):
         batch_loss.append(loss1)
         batch_rmse.append(rmse1 * max_value)
 
-     # Test completely at every epoch
+    # Test completely at every epoch
     loss2, rmse2, test_output = sess.run([loss, error, y_pred],
                                          feed_dict = {inputs:testX, labels:testY})
     test_label = np.reshape(testY,[-1,num_nodes])
@@ -154,15 +167,22 @@ for epoch in range(training_epoch):
     
     print('Iter:{}'.format(epoch),
           'train_rmse:{:.4}'.format(batch_rmse[-1]),
+          'train_loss:{:.4}'.format(batch_loss[-1]),
           'test_loss:{:.4}'.format(loss2),
-          'test_rmse:{:.4}'.format(rmse),
-          'test_acc:{:.4}'.format(acc))
+          'test_rmse:{:.4}'.format(test_rmse[-1]),
+          'test_mae:{:.4}'.format(test_mae[-1]),
+          'test_acc:{:.4}'.format(acc),
+          'test_r2:{:.4}'.format(r2_score),
+          'test_var:{:.4}'.format(var_score))
     
     if (epoch % 500 == 0):        
         saver.save(sess, path+'/model_100/TGCN_pre_%r'%epoch, global_step = epoch)
         
 time_end = time.time()
 print(time_end-time_start,'s')
+print('\n')
+print("results for: gru_units="+str(gru_units)+", pre_len="+str(pre_len)+", and epochs="+str(training_epoch))
+print('\n')
 
 ############## visualization ###############
 b = int(len(batch_rmse)/totalbatch)
@@ -175,8 +195,8 @@ index = test_rmse.index(np.min(test_rmse))
 test_result = test_pred[index]
 var = pd.DataFrame(test_result)
 var.to_csv(path+'/test_result.csv',index = False,header = False)
-#plot_result(test_result,test_label1,path)
-#plot_error(train_rmse,train_loss,test_rmse,test_acc,test_mae,path)
+plot_result(test_result,test_label1,path)
+plot_error(train_rmse,train_loss,test_rmse,test_acc,test_mae,path)
 
 print('min_rmse:%r'%(np.min(test_rmse)),
       'min_mae:%r'%(test_mae[index]),
