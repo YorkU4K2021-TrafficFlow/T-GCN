@@ -23,17 +23,10 @@ def load_los_data(dataset):
     return los_tf, adj
 
 
-def load_our_data_intersections(dataset):
-    adj = pd.read_csv(r'../../dataset/adj_mx_intersections.csv',header=None)
+def load_our_data(dataset):
+    adj = pd.read_csv(r'../../dataset/sensors/adj_mx/adj_mx_'+dataset+'.csv', header=None)
     adj = np.mat(adj)
-    tf = pd.read_csv(r'../../dataset/speed_over_time.csv')
-    return tf, adj
-
-
-def load_our_data_sections(dataset):
-    adj = pd.read_csv(r'../../dataset/adj_mx_sections.csv',header=None)
-    adj = np.mat(adj)
-    tf = pd.read_csv(r'../../dataset/speed_over_time_sections.csv')
+    tf = pd.read_csv(r'../../dataset/sensors/spd_over_time/speed_over_time_'+dataset+'.csv')
     return tf, adj
 
 

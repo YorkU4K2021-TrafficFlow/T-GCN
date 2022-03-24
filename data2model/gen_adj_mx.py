@@ -7,14 +7,10 @@ Taken and was adjusted from DCRNN [https://github.com/liyaguang/DCRNN/blob/maste
       year={2018}
     }
 
-This file creates an adjacency matrix for the different nodes/ intersections/ section of the graph,
-and saves it at dataset/adj_mx_intersections.csv or dataset/adj_mx_sections.csv (depending on INTERSECTION
-parameter).
+This file creates an adjacency matrix for the different sensors of the graph,
+and saves it at dataset/adj_mx_[x_sensors].csv
 
-The INTERSECTION parameter specifies whether the input relates to intersections or sections (differentiates between
-2 datasets).
-
-The output file is a NxN adjacency matrix, where N is the number of nodes. The inner values represent how close the
+The output file is a 4xNxN adjacency matrix, where N is the number of nodes. The inner values represent how close the
 nodes are to each other.
 """
 
@@ -24,9 +20,11 @@ from __future__ import print_function
 
 import numpy as np
 import pandas as pd
+import itertools
 
-
-INTERSECTION = True
+FNAMES = ['30_sensors','60_sensors','90_sensors','120_sensors']
+DIR = '../dataset/sensors'
+OUT_NAME = 'adj_mx/adj_mx_'
 
 
 def get_adjacency_matrix(distance_df, sensor_ids, normalized_k=0.1):
@@ -66,28 +64,67 @@ def get_adjacency_matrix(distance_df, sensor_ids, normalized_k=0.1):
     return sensor_ids, sensor_id_to_ind, adj_mx
 
 
+def one_way_to_two_way_converter(distance_df):
+    # Convert the one-way shortest distance file into a two-way.
+    # Makes the assumption that a reverse is instant
+
+    f = []
+    t = []
+    cost = []
+
+    for name, group in distance_df.groupby('to'):
+        tmp = group['from'].values
+        tmp1 = [2*x for x in tmp]
+        tmp2 = [2*x+1 for x in tmp]
+
+        f.append(tmp1)
+        f.append(tmp1)
+        f.append(tmp2)
+        f.append(tmp2)
+
+        tmp = group['to'].values
+        tmp1 = [2*x for x in tmp]
+        tmp2 = [2*x+1 for x in tmp]
+
+        t.append(tmp1)
+        t.append(tmp2)
+        t.append(tmp1)
+        t.append(tmp2)
+
+        tmp = group['cost'].values
+        cost.append(tmp)
+        cost.append(tmp)
+        cost.append(tmp)
+        cost.append(tmp)
+
+    f = list(itertools.chain(*f))
+    t = list(itertools.chain(*t))
+    cost = list(itertools.chain(*cost))
+
+    distance_df = pd.DataFrame(columns=['from', 'to', 'cost'])
+    distance_df['from'] = f
+    distance_df['to'] = t
+    distance_df['cost'] = cost
+    return distance_df
+
+
 if __name__ == '__main__':
-    if INTERSECTION:
-        sensors = pd.read_csv('../dataset/intersections.csv')
-        sensor_ids = [i for i in range(len(sensors))]
-        distance_df = pd.read_csv('../dataset/shortest_dist.csv', dtype={'from': 'int', 'to': 'int'})
-    else:
-        sensors = pd.read_csv('../dataset/sections.csv')
-        sensor_ids = [i for i in range(len(sensors))]
-        distance_df = pd.read_csv('../dataset/shortest_dist_sections.csv', dtype={'from': 'int', 'to': 'int'})
+    for fname in FNAMES:
+        sensors = pd.read_csv(DIR+'/csv/'+fname +'.csv')
+        sensor_ids = [i for i in range(len(sensors)*2)]
 
-    normalized_k = 0.1
+        distance_df = pd.read_csv(DIR+'/shrt_dist/shortest_dist_'+fname+'.csv', dtype={'from': 'int', 'to': 'int'})
+        distance_df = one_way_to_two_way_converter(distance_df)
 
-    _, sensor_id_to_ind, adj_mx = get_adjacency_matrix(distance_df, sensor_ids, normalized_k)
+        normalized_k = 0.1
 
-    # Save file
+        _, sensor_id_to_ind, adj_mx = get_adjacency_matrix(distance_df, sensor_ids, normalized_k)
 
-    adj_mx = pd.DataFrame(adj_mx)
-    print("adj_mx:\n"+str(adj_mx)+"\n")
-    print("adj_mx:\n"+str(len(adj_mx))+"\n")
-    print("adj_mx:\n"+str(len(adj_mx[0]))+"\n")
+        # Save file
+        adj_mx = pd.DataFrame(adj_mx)
+        print("adj_mx:\n"+str(adj_mx)+"\n")
+        print("adj_mx:\n"+str(len(adj_mx))+"\n")
+        print("adj_mx:\n"+str(len(adj_mx[0]))+"\n")
 
-    if INTERSECTION:
-        adj_mx.to_csv('../dataset/adj_mx_intersections.csv', index=False, header=None)
-    else:
-        adj_mx.to_csv('../dataset/adj_mx_sections.csv', index=False, header=None)
+        adj_mx.to_csv(DIR+'/'+ OUT_NAME + fname + '.csv', index=False, header=None)
+

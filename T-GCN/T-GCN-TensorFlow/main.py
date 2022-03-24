@@ -6,7 +6,7 @@ import numpy as np
 import math
 import os
 import numpy.linalg as la
-from input_data import preprocess_data,load_sz_data,load_los_data, load_our_data_sections,  load_our_data_intersections
+from input_data import preprocess_data,load_sz_data,load_los_data, load_our_data
 from tgcn import tgcnCell
 #from gru import GRUCell 
 
@@ -24,8 +24,8 @@ FLAGS = flags.FLAGS
 flags.DEFINE_float('learning_rate', 0.001, 'Initial learning rate.')
 flags.DEFINE_integer('training_epoch', 50, 'Number of epochs to train.')
 flags.DEFINE_integer('gru_units', 64, 'hidden units of gru.')  # sz_taxi: 100, lop_loop: 64
-flags.DEFINE_integer('seq_len', 1, 'time length of inputs.')  # sz_taxi: 4, los_loop: 12  --> represents 1 hour of information
-flags.DEFINE_integer('pre_len', 30, 'time length of prediction.')  # sz_taxi: 1/2/3/4, los_loop: 3/6/9/12 for [15/30/45/60] min respectively  --> represents 15/20/45/60 min of information
+flags.DEFINE_integer('seq_len', 4, 'time length of inputs.')  # sz_taxi: 4, los_loop: 12  --> represents 1 hour of information
+flags.DEFINE_integer('pre_len', 1, 'time length of prediction.')  # sz_taxi: 1/2/3/4, los_loop: 3/6/9/12 for [15/30/45/60] min respectively  --> represents 15/20/45/60 min of information
 flags.DEFINE_float('train_rate', 0.8, 'rate of training set.')
 flags.DEFINE_integer('batch_size', 64, 'batch size.')
 flags.DEFINE_string('dataset', 'sections', 'sz or los or intersections or sections.')
@@ -43,12 +43,10 @@ gru_units = FLAGS.gru_units
 ###### load data ######
 if data_name == 'sz':
     data, adj = load_sz_data('sz')
-if data_name == 'los':
+elif data_name == 'los':
     data, adj = load_los_data('los')
-if data_name == 'intersections':
-    data, adj = load_our_data_intersections('intersections')
-if data_name == 'sections':
-    data, adj = load_our_data_sections('sections')
+else:
+    data, adj = load_our_data(data_name)
 
 print(len(adj))
 print(len(adj[0]))
@@ -57,13 +55,13 @@ print(len(data))
 print(data)
 
 
-time_len = data.shape[0]
-num_nodes = data.shape[1]
+time_len = data.shape[0]   # time
+num_nodes = data.shape[1]  # num sensors
 data1 =np.mat(data,dtype=np.float32)
 
 #### normalization
 max_value = np.max(data1)
-data1  = data1/max_value
+data1 = data1/max_value
 trainX, trainY, testX, testY = preprocess_data(data1, time_len, train_rate, seq_len, pre_len)
 
 totalbatch = int(trainX.shape[0]/batch_size)

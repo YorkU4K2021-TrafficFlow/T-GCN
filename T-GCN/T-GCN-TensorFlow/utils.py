@@ -6,11 +6,15 @@ import numpy as np
 
 
 def normalized_adj(adj):
-    adj = sp.coo_matrix(adj)
+    adj = sp.coo_matrix(adj)  # ijv/ triplet format
     rowsum = np.array(adj.sum(1))
     d_inv_sqrt = np.power(rowsum, -0.5).flatten()
     d_inv_sqrt[np.isinf(d_inv_sqrt)] = 0.
     d_mat_inv_sqrt = sp.diags(d_inv_sqrt)
+
+    # D^(-1/2)AD^(-1/2) -> for undirected graph
+    # mentioned in github that for directed graph, need to take:
+    #   non-symmetric normalized adjacency matrix -> D^(-1)*A
     normalized_adj = adj.dot(d_mat_inv_sqrt).transpose().dot(d_mat_inv_sqrt).tocoo()
     normalized_adj = normalized_adj.astype(np.float32)
     return normalized_adj
@@ -23,7 +27,7 @@ def sparse_to_tuple(mx):
     
 def calculate_laplacian(adj, lambda_max=1):  
     adj = normalized_adj(adj + sp.eye(adj.shape[0]))
-    adj = sp.csr_matrix(adj)
+    adj = sp.csr_matrix(adj)  # compress sparse row matrix
     adj = adj.astype(np.float32)
     return sparse_to_tuple(adj)
     
