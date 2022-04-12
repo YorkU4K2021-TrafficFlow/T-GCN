@@ -26,8 +26,19 @@ def load_los_data(dataset):
 def load_our_data(dataset):
     adj = pd.read_csv(r'../../dataset/sensors/adj_mx/adj_mx_'+dataset+'.csv', header=None)
     adj = np.mat(adj)
-    tf = pd.read_csv(r'../../dataset/sensors/spd_over_time/speed_over_time_'+dataset+'.csv')
-    return tf, adj
+    tf = pd.read_csv(r'../../dataset/sensors/spd_over_time/speed_over_time_'+dataset+'.csv',header=None)
+
+    prediction = pd.read_csv('../../data2model/hyperparam_tuning/'+dataset+'/3000_epochs/100_units/3_pre/test_result.csv',header=None)
+    return tf, adj, prediction
+
+
+def load_our_data_5_days(dataset):
+    adj = pd.read_csv(r'../../dataset/sensors/adj_mx/adj_mx_'+dataset+'.csv', header=None)
+    adj = np.mat(adj)
+    tf = pd.read_csv(r'../../dataset/sensors/spd_over_5_days/speed_over_time_'+dataset+'.csv',header=None)
+
+    prediction = pd.read_csv('../../data2model/hyperparam_tuning_5_days/'+dataset+'/3000_epochs/100_units/3_pre/test_result.csv',header=None)
+    return tf, adj, prediction
 
 
 def preprocess_data(data, time_len, rate, seq_len, pre_len):
@@ -57,4 +68,4 @@ def preprocess_data(data, time_len, rate, seq_len, pre_len):
     testX1 = np.array(testX)
     testY1 = np.array(testY)
     return trainX1, trainY1, testX1, testY1
-    
+

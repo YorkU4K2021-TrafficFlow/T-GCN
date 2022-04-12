@@ -43,23 +43,26 @@ else:
     import re
     import ast
 
-    # file = open('../dataset/intersection_selection_result.txt', 'r')
-    file = open('../dataset/sections_selection_result.txt', 'r')
+    FNAMES = ['30_sensors','50_sensors','60_sensors','90_sensors','100_sensors','120_sensors']
+    DIR = '../dataset/sensors'
 
-    content = file.read()
-    coordinates = re.findall('\[.*?]',content)
-    file.close()
-    coordinates = [ast.literal_eval(coordinate) for coordinate in coordinates]
+    for fname in FNAMES:
+        file = open(DIR +'/'+ fname+'.txt', 'r')
 
-    coordinates = np.array(coordinates)
-    coordinates = coordinates[:len(coordinates)-1]
+        content = file.read()
+        coordinates = re.findall('\[.*?]',content)
+        file.close()
+        coordinates = [ast.literal_eval(coordinate) for coordinate in coordinates]
 
-    df = pd.DataFrame(columns=['latitude', 'longitude'])
-    df['longitude'] = coordinates[:,1]
-    df['latitude'] = coordinates[:,0]
+        coordinates = np.array(coordinates)
+        coordinates = coordinates[:len(coordinates)-1]
 
-    df = df.drop_duplicates()
+        df = pd.DataFrame(columns=['latitude', 'longitude'])
+        df['longitude'] = coordinates[:,1]
+        df['latitude'] = coordinates[:,0]
 
-    print(df.head(10))
-    print(df.dtypes)
-    df.to_csv('../dataset/sections.csv',index=False)
+        df = df.drop_duplicates()
+
+        print(df.head(10))
+        print(df.dtypes)
+        df.to_csv(DIR + '/csv/' + fname + '.csv',index=False)

@@ -1,4 +1,5 @@
-#!/eecs/local/bin/python3.7
+#!/usr/bin/env python3.6
+# !/eecs/local/bin/python3.7
 
 # -*- coding: utf-8 -*-
 import tensorflow as tf
@@ -7,7 +8,7 @@ import numpy as np
 import math
 import os
 import numpy.linalg as la
-from input_data import preprocess_data, load_sz_data, load_los_data, load_our_data
+from input_data import preprocess_data, load_sz_data, load_los_data, load_our_data, load_our_data_5_days
 from tgcn import tgcnCell
 
 from visualization import plot_result, plot_error
@@ -18,12 +19,13 @@ import time
 time_start = time.time()
 
 # ------------------------------ PROPOSED HYPER-PARAMETERS ------------------------------
-GRU_UNITS = [8, 16, 32, 64, 100, 128]  # following the paper suggested values
-MAX_EPOCH = 5000  # maximun epoch value following the paper
-SAVE_AFTER = 500  # analyze units at each 1000'th epoch mark (aka: 1000, 2000, ...)
+GRU_UNITS = [8, 16]#, 32, 64, 100, 128]  # following the paper suggested values
+MAX_EPOCH = 2  # maximun epoch value following the paper
+SAVE_AFTER = 1  # analyze units at each 1000'th epoch mark (aka: 1000, 2000, ...)
 BATCH_SIZE = 32  # generally, 32 is sufficient
-NUM_SENSORS = ['30_sensors', '60_sensors', '90_sensors', '120_sensors']
-PRE_LENS = [3, 6, 9, 12]
+NUM_SENSORS = ['30_sensors', '60_sensors']#, '90_sensors', '120_sensors']
+PRE_LENS = [3]#, 6, 9, 12]
+IS_5_DAYS = True
 
 # ---------------------------------------------------------------------------------------
 
@@ -163,12 +165,31 @@ def vis_results(path):
 
         #  labels
         ax.set_xlabel("Hidden Units")
-        plt.title("Accuracy, R2 and MAE over hidden layers - " + str((i + 1) * SAVE_AFTER) + ' epochs')
+        plt.title("Accuracy, R2 and Variance over hidden layers - " + str((i + 1) * SAVE_AFTER) + ' epochs')
         plt.xticks(x_axis, GRU_UNITS)
         plt.savefig(path + '/Accuracy_R2_Var_' + str((i + 1) * SAVE_AFTER) + '_epochs.png', bbox_inches='tight')
         plt.clf()
 
         plt.close('all')
+
+
+def save_results(path):
+    global RMSE, MAE, ACCURACY, R2, VAR, GRU_UNITS, MAX_EPOCH, SAVE_AFTER
+
+    d1 = pd.DataFrame(RMSE)
+    d1.to_csv(path+'/RMSE.csv', index=False, header=None)
+
+    d2 = pd.DataFrame(MAE)
+    d2.to_csv(path+'/MAE.csv', index=False, header=None)
+
+    d3 = pd.DataFrame(R2)
+    d3.to_csv(path+'/R2.csv', index=False, header=None)
+
+    d4 = pd.DataFrame(VAR)
+    d4.to_csv(path+'/VAR.csv', index=False, header=None)
+
+    d5 = pd.DataFrame(ACCURACY)
+    d5.to_csv(path+'/ACCURACY.csv', index=False, header=None)
 
 
 for PRE_LEN in PRE_LENS:
@@ -211,6 +232,8 @@ for PRE_LEN in PRE_LENS:
                 data, adj = load_sz_data('sz')
             elif data_name == 'los':
                 data, adj = load_los_data('los')
+            elif IS_5_DAYS:
+                data, adj = load_our_data_5_days(data_name)
             else:
                 data, adj = load_our_data(data_name)
 
@@ -297,7 +320,10 @@ for PRE_LEN in PRE_LENS:
                 #       'test_var:{:.4}'.format(var_score))
 
                 if (epoch % SAVE_AFTER == 0 and epoch != 0):
-                    path = '../../data2model/hyperparam_tuning/%s/%s_epochs/%s_units/%s_pre' % (num_sensors, epoch, gru_units, pre_len)
+                    if IS_5_DAYS:
+                        path = '../../data2model/hyperparam_tuning_5_days/%s/%s_epochs/%s_units/%s_pre' % (num_sensors, epoch, gru_units, pre_len)
+                    else:
+                        path = '../../data2model/hyperparam_tuning/%s/%s_epochs/%s_units/%s_pre' % (num_sensors, epoch, gru_units, pre_len)
 
                     if not os.path.exists(path):
                         os.makedirs(path)
@@ -306,7 +332,10 @@ for PRE_LEN in PRE_LENS:
                                        test_label1, path, test_acc, test_mae, test_r2, test_var, time_start, batch_loss)
                     # saver.save(sess, path+'/model_100/TGCN_pre_%r'%epoch, global_step = epoch)
 
-            path = '../../data2model/hyperparam_tuning/%s/%s_epochs/%s_units/%s_pre' % (num_sensors, training_epoch, gru_units, pre_len)
+            if IS_5_DAYS:
+                path = '../../data2model/hyperparam_tuning_5_days/%s/%s_epochs/%s_units/%s_pre' % (num_sensors, training_epoch, gru_units, pre_len)
+            else:
+                path = '../../data2model/hyperparam_tuning/%s/%s_epochs/%s_units/%s_pre' % (num_sensors, training_epoch, gru_units, pre_len)
 
             if not os.path.exists(path):
                 os.makedirs(path)
@@ -320,7 +349,12 @@ for PRE_LEN in PRE_LENS:
                 FLAGS.__delattr__(keys)
             tf.reset_default_graph()
 
-        path = '../../data2model/hyperparam_results/' + num_sensors + '/' + str(pre_len) + '_len'
+        if IS_5_DAYS:
+            path = '../../data2model/hyperparam_results_5_days/' + num_sensors + '/' + str(pre_len) + '_len'
+        else:
+            path = '../../data2model/hyperparam_results/' + num_sensors + '/' + str(pre_len) + '_len'
         if not os.path.exists(path):
             os.makedirs(path)
         vis_results(path=path)
+
+        save_results(path=path)
